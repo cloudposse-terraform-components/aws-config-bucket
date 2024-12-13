@@ -5,7 +5,7 @@ tags:
   - provider/aws
 ---
 
-# Component: `config`
+# Component: `config-bucket`
 
 This module creates an S3 bucket suitable for storing `AWS Config` data.
 
