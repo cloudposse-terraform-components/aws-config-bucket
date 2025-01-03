@@ -5,4 +5,3 @@ repository:
   description: This module creates an S3 bucket suitable for storing `AWS Config` data
   homepage: https://cloudposse.com/accelerate
   topics: terraform, terraform-component
-
