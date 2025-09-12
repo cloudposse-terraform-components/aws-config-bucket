@@ -13,11 +13,8 @@ It implements a configurable log retention policy, which allows you to efficient
 classes (_e.g._ `Glacier`) and ultimately expire the data altogether.
 
 It enables server-side encryption by default.
-<a name="https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html">https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html</a>
 
 It blocks public access to the bucket by default.
-<a name="https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html">https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html</a>
-
 ## Usage
 
 **Stack Level**: Regional
@@ -39,8 +36,8 @@ components:
         expiration_days: 365
 ```
 
-<!-- prettier-ignore-start -->
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+
+<!-- markdownlint-disable -->
 ## Requirements
 
 | Name | Version |
@@ -104,12 +101,21 @@ No resources.
 | <a name="output_config_bucket_arn"></a> [config\_bucket\_arn](#output\_config\_bucket\_arn) | Config bucket ARN |
 | <a name="output_config_bucket_domain_name"></a> [config\_bucket\_domain\_name](#output\_config\_bucket\_domain\_name) | Config bucket FQDN |
 | <a name="output_config_bucket_id"></a> [config\_bucket\_id](#output\_config\_bucket\_id) | Config bucket ID |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-<!-- prettier-ignore-end -->
+<!-- markdownlint-restore -->
+
+
 
 ## References
 
-- [cloudposse/terraform-aws-components](https://github.com/cloudposse/terraform-aws-components/tree/main/modules/config-bucket) -
-  Cloud Posse's upstream component
+
+- [AWS S3 Bucket Encryption](https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) - 
+
+- [AWS S3 Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) - 
+
+- [cloudposse-terraform-components](https://github.com/orgs/cloudposse-terraform-components/repositories) - Cloud Posse's upstream component
+
+
+
 
 [<img src="https://cloudposse.com/logo-300x69.svg" height="32" align="right"/>](https://cpco.io/homepage?utm_source=github&utm_medium=readme&utm_campaign=cloudposse-terraform-components/aws-config-bucket&utm_content=)
+
