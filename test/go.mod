@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/cloudposse/test-helpers v0.23.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/gruntwork-io/terratest v0.48.2 // indirect
+	github.com/gruntwork-io/terratest v0.48.2
 	github.com/mattn/go-zglob v0.0.6 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/stretchr/testify v1.10.0
@@ -17,13 +17,17 @@ require (
 // replace github.com/rebuy-de/aws-nuke/v2/mocks => github.com/ekristen/aws-nuke/v3/ v3.29.0
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.36.3
+	github.com/aws/aws-sdk-go-v2/config v1.29.6
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.76.1
+)
+
+require (
 	dario.cat/mergo v1.0.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.8 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.29.6 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.59 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.28 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.61 // indirect
@@ -48,7 +52,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/rds v1.93.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.48.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.76.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.18 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.14 // indirect
