@@ -35,10 +35,9 @@ func (s *ComponentSuite) TestBasic() {
 	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Initialize AWS SDK v2 client
-	ctx := context.Background()
-	cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(awsRegion))
+	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
-	client := s3.NewFromConfig(cfg)
+	ctx := context.Background()
 
 	// Test 1: Verify bucket encryption is enabled (AES256)
 	s.T().Run("VerifyEncryption", func(t *testing.T) {
@@ -48,7 +47,7 @@ func (s *ComponentSuite) TestBasic() {
 		require.NoError(t, err, "Should be able to get bucket encryption")
 		require.NotNil(t, encryption.ServerSideEncryptionConfiguration)
 		require.NotEmpty(t, encryption.ServerSideEncryptionConfiguration.Rules)
-	
+
 		// Verify AES256 encryption is configured
 		rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
 		require.NotNil(t, rule.ApplyServerSideEncryptionByDefault)
@@ -80,12 +79,12 @@ func (s *ComponentSuite) TestBasic() {
 		// noncurrent_version_expiration_days: 180
 		rule := lifecycle.Rules[0]
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
-		
+
 		// Check for transitions
 		if len(rule.Transitions) > 0 {
 			assert.NotNil(t, rule.Transitions, "Should have transition rules")
 		}
-		
+
 		// Check expiration
 		if rule.Expiration != nil {
 			assert.Equal(t, int32(365), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 365 days")
@@ -99,7 +98,7 @@ func (s *ComponentSuite) TestBasic() {
 		})
 		require.NoError(t, err, "Should be able to get public access block configuration")
 		require.NotNil(t, publicAccessBlock.PublicAccessBlockConfiguration)
-		
+
 		// All public access should be blocked
 		assert.True(t, awsv2.ToBool(publicAccessBlock.PublicAccessBlockConfiguration.BlockPublicAcls), "BlockPublicAcls should be true")
 		assert.True(t, awsv2.ToBool(publicAccessBlock.PublicAccessBlockConfiguration.BlockPublicPolicy), "BlockPublicPolicy should be true")
@@ -133,10 +132,9 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Initialize AWS SDK v2 client
-	ctx := context.Background()
-	cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(awsRegion))
+	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
-	client := s3.NewFromConfig(cfg)
+	ctx := context.Background()
 
 	// Verify custom lifecycle configuration
 	s.T().Run("VerifyCustomLifecyclePolicy", func(t *testing.T) {
@@ -152,7 +150,7 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 		// expiration_days: 180
 		rule := lifecycle.Rules[0]
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
-		
+
 		// Verify expiration matches custom value (180 days)
 		if rule.Expiration != nil {
 			assert.Equal(t, int32(180), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 180 days")
@@ -179,10 +177,9 @@ func (s *ComponentSuite) TestNoLifecycle() {
 	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Initialize AWS SDK v2 client
-	ctx := context.Background()
-	cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(awsRegion))
+	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
-	client := s3.NewFromConfig(cfg)
+	ctx := context.Background()
 
 	// Verify lifecycle is disabled
 	s.T().Run("VerifyNoLifecyclePolicy", func(t *testing.T) {
@@ -201,7 +198,7 @@ func (s *ComponentSuite) TestNoLifecycle() {
 		})
 		require.NoError(t, err, "Should be able to get bucket encryption")
 		require.NotNil(t, encryption.ServerSideEncryptionConfiguration)
-		
+
 		rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
 		assert.Equal(t, s3types.ServerSideEncryptionAes256, rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm)
 	})
