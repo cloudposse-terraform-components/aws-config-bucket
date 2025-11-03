@@ -81,14 +81,13 @@ func (s *ComponentSuite) TestBasic() {
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
 
 		// Check for transitions
-		if len(rule.Transitions) > 0 {
-			assert.NotNil(t, rule.Transitions, "Should have transition rules")
-		}
+		require.NotEmpty(t, rule.Transitions, "Should have transition rules")
+		// Verify transitions match fixture: standard (60d), glacier (180d)
+		// Note: Order and exact matching depends on Terraform's lifecycle rule ordering
 
 		// Check expiration
-		if rule.Expiration != nil {
-			assert.Equal(t, int32(365), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 365 days")
-		}
+		require.NotNil(t, rule.Expiration, "Expiration should be configured")
+		assert.Equal(t, int32(365), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 365 days")
 	})
 
 	// Test 4: Verify public access block
@@ -152,9 +151,8 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
 
 		// Verify expiration matches custom value (180 days)
-		if rule.Expiration != nil {
-			assert.Equal(t, int32(180), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 180 days")
-		}
+		require.NotNil(t, rule.Expiration, "Expiration should be configured")
+		assert.Equal(t, int32(180), awsv2.ToInt32(rule.Expiration.Days), "Expiration should be 180 days")
 	})
 
 	// Run drift detection
