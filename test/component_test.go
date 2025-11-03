@@ -215,7 +215,7 @@ func (s *ComponentSuite) getS3Client(region string) (*s3.Client, error) {
 	return s3.NewFromConfig(cfg), nil
 }
 
-// function testing
+// TestRunSuite runs the ComponentSuite test suite
 func TestRunSuite(t *testing.T) {
 	suite := new(ComponentSuite)
 	helper.Run(t, suite)
