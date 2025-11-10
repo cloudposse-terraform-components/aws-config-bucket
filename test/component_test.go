@@ -229,6 +229,7 @@ func (s *ComponentSuite) TestNoLifecycle() {
 		})
 		require.NoError(t, err, "Should be able to get bucket encryption")
 		require.NotNil(t, encryption.ServerSideEncryptionConfiguration)
+		require.NotEmpty(t, encryption.ServerSideEncryptionConfiguration.Rules)
 
 		rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
 		assert.Equal(t, s3types.ServerSideEncryptionAes256, rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm)
