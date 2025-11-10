@@ -1,0 +1,14 @@
+components:
+  terraform:
+    aws-config-bucket/custom-lifecycle:
+      metadata:
+        component: target
+      vars:
+        enabled: true
+        name: "test-custom"
+        lifecycle_rule_enabled: true
+        noncurrent_version_expiration_days: 90
+        noncurrent_version_transition_days: 15
+        standard_transition_days: 30
+        glacier_transition_days: 90
+        expiration_days: 180
