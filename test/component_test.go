@@ -1,6 +1,7 @@
 package test
 
 import (
+ 	"errors"
 	"context"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+ 	"github.com/aws/smithy-go"
 	helper "github.com/cloudposse/test-helpers/pkg/atmos/component-helper"
 	"github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
@@ -80,10 +82,19 @@ func (s *ComponentSuite) TestBasic() {
 		rule := lifecycle.Rules[0]
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
 
-		// Check for transitions
-		require.NotEmpty(t, rule.Transitions, "Should have transition rules")
-		// Verify transitions match fixture: standard (60d), glacier (180d)
-		// Note: Order and exact matching depends on Terraform's lifecycle rule ordering
+		// Check transitions (order-agnostic exact match)
+		require.Len(t, rule.Transitions, 2, "Expected 2 transition rules")
+		expectedTransitions := []s3types.Transition{
+			{Days: awsv2.Int32(60), StorageClass: s3types.TransitionStorageClassStandardIa},
+			{Days: awsv2.Int32(180), StorageClass: s3types.TransitionStorageClassGlacier},
+		}
+		assert.ElementsMatch(t, expectedTransitions, rule.Transitions, "Transition rules should match fixture values")
+
+		// Check noncurrent version transition and expiration
+		require.NotEmpty(t, rule.NoncurrentVersionTransitions, "Should have noncurrent version transitions")
+		assert.Equal(t, int32(30), awsv2.ToInt32(rule.NoncurrentVersionTransitions[0].NoncurrentDays), "Noncurrent version transition should be 30 days")
+		require.NotNil(t, rule.NoncurrentVersionExpiration, "Noncurrent version expiration should be configured")
+		assert.Equal(t, int32(180), awsv2.ToInt32(rule.NoncurrentVersionExpiration.NoncurrentDays), "Noncurrent version expiration should be 180 days")
 
 		// Check expiration
 		require.NotNil(t, rule.Expiration, "Expiration should be configured")
@@ -144,11 +155,27 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 		require.NotEmpty(t, lifecycle.Rules, "Should have lifecycle rules")
 
 		// Verify custom lifecycle properties
+		// noncurrent_version_transition_days: 15
 		// standard_transition_days: 30
 		// glacier_transition_days: 90
 		// expiration_days: 180
+		// noncurrent_version_expiration_days: 90
 		rule := lifecycle.Rules[0]
 		assert.Equal(t, s3types.ExpirationStatusEnabled, rule.Status, "Lifecycle rule should be enabled")
+
+		// Check transitions (order-agnostic exact match)
+		require.Len(t, rule.Transitions, 2, "Expected 2 transition rules")
+		expectedTransitions := []s3types.Transition{
+			{Days: awsv2.Int32(30), StorageClass: s3types.TransitionStorageClassStandardIa},
+			{Days: awsv2.Int32(90), StorageClass: s3types.TransitionStorageClassGlacier},
+		}
+		assert.ElementsMatch(t, expectedTransitions, rule.Transitions, "Transition rules should match custom lifecycle values")
+
+		// Check noncurrent version transition and expiration
+		require.NotEmpty(t, rule.NoncurrentVersionTransitions, "Should have noncurrent version transitions")
+		assert.Equal(t, int32(15), awsv2.ToInt32(rule.NoncurrentVersionTransitions[0].NoncurrentDays), "Noncurrent version transition should be 15 days")
+		require.NotNil(t, rule.NoncurrentVersionExpiration, "Noncurrent version expiration should be configured")
+		assert.Equal(t, int32(90), awsv2.ToInt32(rule.NoncurrentVersionExpiration.NoncurrentDays), "Noncurrent version expiration should be 90 days")
 
 		// Verify expiration matches custom value (180 days)
 		require.NotNil(t, rule.Expiration, "Expiration should be configured")
@@ -184,9 +211,11 @@ func (s *ComponentSuite) TestNoLifecycle() {
 		_, err := client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 			Bucket: awsv2.String(bucketName),
 		})
-		// When lifecycle_rule_enabled is false, GetBucketLifecycleConfiguration should return an error
-		// indicating no lifecycle configuration exists
-		assert.Error(t, err, "Should get an error when no lifecycle configuration exists")
+		// When lifecycle_rule_enabled is false, the API should return NoSuchLifecycleConfiguration
+		require.Error(t, err, "Should get an error when no lifecycle configuration exists")
+		var apiErr smithy.APIError
+		require.True(t, errors.As(err, &apiErr), "Expected smithy.APIError for lifecycle lookup")
+		assert.Equal(t, "NoSuchLifecycleConfiguration", apiErr.ErrorCode(), "Unexpected error when lifecycle configuration is absent")
 	})
 
 	// Verify encryption and versioning still work
