@@ -3,10 +3,12 @@ package test
 import (
 	"errors"
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"strings"
 	"time"
+	"os/exec"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -23,6 +25,38 @@ type ComponentSuite struct {
 	helper.TestSuite
 }
 
+// getBucketFromOutputs retrieves config_bucket_id using Atmos CLI outputs in JSON
+func getBucketFromOutputs(ctx context.Context, component, stack string) (string, error) {
+    // atmos terraform output <component> -s <stack> -json -no-color
+    cmd := exec.CommandContext(ctx, "atmos", "terraform", "output", component, "-s", stack, "-json", "-no-color")
+    out, err := cmd.Output()
+    if err != nil {
+        return "", err
+    }
+    // Terraform JSON output format: map[string]{"value": any, ...}
+    var parsed map[string]struct{
+        Value any `json:"value"`
+    }
+    if err := json.Unmarshal(out, &parsed); err != nil {
+        return "", err
+    }
+    v, ok := parsed["config_bucket_id"]
+    if !ok || v.Value == nil {
+        return "", fmt.Errorf("config_bucket_id not found in outputs")
+    }
+    // expect string
+    if s, ok := v.Value.(string); ok {
+        return s, nil
+    }
+    // sometimes value may be encoded as other types
+    b, _ := json.Marshal(v.Value)
+    var str string
+    if err := json.Unmarshal(b, &str); err == nil {
+        return str, nil
+    }
+    return "", fmt.Errorf("unexpected type for config_bucket_id")
+}
+
 func (s *ComponentSuite) TestBasic() {
 	const component = "aws-config-bucket/basic"
 	const stack = "default-test"
@@ -32,13 +66,16 @@ func (s *ComponentSuite) TestBasic() {
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
 	require.NotNil(s.T(), options)
 
-	// Discover created bucket by prefix (name includes random attributes)
+	// Read bucket ID from Terraform outputs for this run; fallback to discovery by prefix
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
-	bucketPrefix := "eg-default-ue1-test-test"
-	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
-	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	bucketName, err := getBucketFromOutputs(ctx, component, stack)
+	if err != nil || bucketName == "" {
+		bucketPrefix := "eg-default-ue1-test-test"
+		bucketName, err = discoverBucketByPrefix(ctx, client, bucketPrefix)
+		require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	}
 
 	// Wait for eventual consistency then verify bucket exists in AWS
 	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
@@ -141,9 +178,12 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
-	bucketPrefix := "eg-default-ue1-test-test-custom"
-	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
-	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	bucketName, err := getBucketFromOutputs(ctx, component, stack)
+	if err != nil || bucketName == "" {
+		bucketPrefix := "eg-default-ue1-test-test-custom"
+		bucketName, err = discoverBucketByPrefix(ctx, client, bucketPrefix)
+		require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	}
 
 	// Wait for eventual consistency then verify bucket exists
 	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
@@ -206,13 +246,16 @@ func (s *ComponentSuite) TestNoLifecycle() {
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
 	require.NotNil(s.T(), options)
 
-	// Discover created bucket by prefix (name includes random attributes)
+	// Read bucket ID from Terraform outputs for this run; fallback to discovery by prefix
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
-	bucketPrefix := "eg-default-ue1-test-test-no-lifecycle"
-	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
-	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	bucketName, err := getBucketFromOutputs(ctx, component, stack)
+	if err != nil || bucketName == "" {
+		bucketPrefix := "eg-default-ue1-test-test-no-lifecycle"
+		bucketName, err = discoverBucketByPrefix(ctx, client, bucketPrefix)
+		require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+	}
 
 	// Wait for eventual consistency then verify bucket exists
 	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
@@ -264,12 +307,24 @@ func discoverBucketByPrefix(ctx context.Context, client *s3.Client, prefix strin
     if err != nil {
         return "", err
     }
+    var latestName string
+    var latestTime time.Time
     for _, b := range out.Buckets {
         if b.Name != nil && strings.HasPrefix(*b.Name, prefix) {
-            return *b.Name, nil
+            if b.CreationDate != nil {
+                if latestName == "" || b.CreationDate.After(latestTime) {
+                    latestName = *b.Name
+                    latestTime = *b.CreationDate
+                }
+            } else if latestName == "" { // fallback if no creation date present
+                latestName = *b.Name
+            }
         }
     }
-    return "", fmt.Errorf("no bucket found with prefix %s", prefix)
+    if latestName == "" {
+        return "", fmt.Errorf("no bucket found with prefix %s", prefix)
+    }
+    return latestName, nil
 }
 
 // waitForBucketExists polls HeadBucket until it succeeds or times out
