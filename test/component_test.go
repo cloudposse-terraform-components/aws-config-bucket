@@ -232,6 +232,7 @@ func (s *ComponentSuite) TestNoLifecycle() {
 		require.NotEmpty(t, encryption.ServerSideEncryptionConfiguration.Rules)
 
 		rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
+		require.NotNil(t, rule.ApplyServerSideEncryptionByDefault, "Encryption rule should be configured with defaults")
 		assert.Equal(t, s3types.ServerSideEncryptionAes256, rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm)
 	})
 
