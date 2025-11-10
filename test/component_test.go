@@ -1,15 +1,18 @@
 package test
 
 import (
- 	"errors"
+	"errors"
 	"context"
+	"fmt"
 	"testing"
+	"strings"
+	"time"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
- 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go"
 	helper "github.com/cloudposse/test-helpers/pkg/atmos/component-helper"
 	"github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
@@ -29,17 +32,17 @@ func (s *ComponentSuite) TestBasic() {
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
 	require.NotNil(s.T(), options)
 
-	// Get bucket name from Terraform state - expect format: namespace-tenant-environment-stage-name
-	// Based on test fixtures: eg-default-ue2-test-test
-	bucketName := "eg-default-ue2-test-test"
-
-	// Verify bucket exists in AWS
-	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
-
-	// Initialize AWS SDK v2 client
+	// Discover created bucket by prefix (name includes random attributes)
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
+	bucketPrefix := "eg-default-ue1-test-test"
+	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
+	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+
+	// Wait for eventual consistency then verify bucket exists in AWS
+	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
+	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Test 1: Verify bucket encryption is enabled (AES256)
 	s.T().Run("VerifyEncryption", func(t *testing.T) {
@@ -135,16 +138,16 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
 	require.NotNil(s.T(), options)
 
-	// Expected bucket name: eg-default-ue2-test-test-custom
-	bucketName := "eg-default-ue2-test-test-custom"
-
-	// Verify bucket exists
-	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
-
-	// Initialize AWS SDK v2 client
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
+	bucketPrefix := "eg-default-ue1-test-test-custom"
+	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
+	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+
+	// Wait for eventual consistency then verify bucket exists
+	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
+	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Verify custom lifecycle configuration
 	s.T().Run("VerifyCustomLifecyclePolicy", func(t *testing.T) {
@@ -195,16 +198,17 @@ func (s *ComponentSuite) TestNoLifecycle() {
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
 	require.NotNil(s.T(), options)
 
-	// Expected bucket name: eg-default-ue2-test-test-no-lifecycle
-	bucketName := "eg-default-ue2-test-test-no-lifecycle"
-
-	// Verify bucket exists
-	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
-
-	// Initialize AWS SDK v2 client
+	// Discover created bucket by prefix (name includes random attributes)
 	client, err := s.getS3Client(awsRegion)
 	require.NoError(s.T(), err, "Failed to load AWS config")
 	ctx := context.Background()
+	bucketPrefix := "eg-default-ue1-test-test-no-lifecycle"
+	bucketName, err := discoverBucketByPrefix(ctx, client, bucketPrefix)
+	require.NoError(s.T(), err, fmt.Sprintf("Failed to find bucket with prefix %s", bucketPrefix))
+
+	// Wait for eventual consistency then verify bucket exists
+	waitForBucketExists(s.T(), ctx, client, bucketName, 2*time.Minute, 5*time.Second)
+	aws.AssertS3BucketExists(s.T(), awsRegion, bucketName)
 
 	// Verify lifecycle is disabled
 	s.T().Run("VerifyNoLifecyclePolicy", func(t *testing.T) {
@@ -236,16 +240,45 @@ func (s *ComponentSuite) TestNoLifecycle() {
 
 // Helper function to get S3 client
 func (s *ComponentSuite) getS3Client(region string) (*s3.Client, error) {
-	ctx := context.Background()
-	cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(region))
-	if err != nil {
-		return nil, err
-	}
-	return s3.NewFromConfig(cfg), nil
+    ctx := context.Background()
+    cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(region))
+    if err != nil {
+        return nil, err
+    }
+    return s3.NewFromConfig(cfg), nil
+}
+
+// discoverBucketByPrefix finds the first S3 bucket whose name starts with the given prefix
+func discoverBucketByPrefix(ctx context.Context, client *s3.Client, prefix string) (string, error) {
+    out, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
+    if err != nil {
+        return "", err
+    }
+    for _, b := range out.Buckets {
+        if b.Name != nil && strings.HasPrefix(*b.Name, prefix) {
+            return *b.Name, nil
+        }
+    }
+    return "", fmt.Errorf("no bucket found with prefix %s", prefix)
+}
+
+// waitForBucketExists polls HeadBucket until it succeeds or times out
+func waitForBucketExists(t *testing.T, ctx context.Context, client *s3.Client, bucket string, timeout, interval time.Duration) {
+    deadline := time.Now().Add(timeout)
+    for {
+        _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: awsv2.String(bucket)})
+        if err == nil {
+            return
+        }
+        if time.Now().After(deadline) {
+            require.NoError(t, err, "bucket did not become available: %s", bucket)
+        }
+        time.Sleep(interval)
+    }
 }
 
 // TestRunSuite runs the ComponentSuite test suite
 func TestRunSuite(t *testing.T) {
-	suite := new(ComponentSuite)
-	helper.Run(t, suite)
+    suite := new(ComponentSuite)
+    helper.Run(t, suite)
 }
