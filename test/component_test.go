@@ -21,7 +21,7 @@ type ComponentSuite struct {
 func (s *ComponentSuite) TestBasic() {
 	const component = "aws-config-bucket/basic"
 	const stack = "default-test"
-	const awsRegion = "us-east-2"
+	const awsRegion = "us-east-1"
 
 	defer s.DestroyAtmosComponent(s.T(), component, stack, nil)
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
@@ -118,7 +118,7 @@ func (s *ComponentSuite) TestEnabledFlag() {
 func (s *ComponentSuite) TestCustomLifecycle() {
 	const component = "aws-config-bucket/custom-lifecycle"
 	const stack = "default-test"
-	const awsRegion = "us-east-2"
+	const awsRegion = "us-east-1"
 
 	defer s.DestroyAtmosComponent(s.T(), component, stack, nil)
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
@@ -162,7 +162,7 @@ func (s *ComponentSuite) TestCustomLifecycle() {
 func (s *ComponentSuite) TestNoLifecycle() {
 	const component = "aws-config-bucket/no-lifecycle"
 	const stack = "default-test"
-	const awsRegion = "us-east-2"
+	const awsRegion = "us-east-1"
 
 	defer s.DestroyAtmosComponent(s.T(), component, stack, nil)
 	options, _ := s.DeployAtmosComponent(s.T(), component, stack, nil)
