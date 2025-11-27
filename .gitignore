@@ -32,6 +32,12 @@ aws-assumed-role/
 **/crash.log
 **/secrets/
 
+# Terragrunt cache directories
+**/.terragrunt-cache
+
+# Test fixtures components (vendored dependencies and symlinks)
+test/fixtures/components/
+
 # Module directory
 # Note that the leading "**/" appears necessary for Docker even if not for Git
 **/.terraform*/

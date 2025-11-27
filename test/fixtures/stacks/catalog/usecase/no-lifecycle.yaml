@@ -1,0 +1,14 @@
+components:
+  terraform:
+    aws-config-bucket/no-lifecycle:
+      metadata:
+        component: target
+      vars:
+        enabled: true
+        name: "test-no-lifecycle"
+        lifecycle_rule_enabled: false
+        noncurrent_version_expiration_days: 90
+        noncurrent_version_transition_days: 30
+        standard_transition_days: 60
+        glacier_transition_days: 180
+        expiration_days: 365
