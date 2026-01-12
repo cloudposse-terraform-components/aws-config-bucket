@@ -1,0 +1,6 @@
+import:
+  - orgs/default/test/_defaults
+  - catalog/usecase/basic
+  - catalog/usecase/disabled
+  - catalog/usecase/custom-lifecycle
+  - catalog/usecase/no-lifecycle
