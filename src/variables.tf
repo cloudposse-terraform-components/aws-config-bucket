@@ -33,12 +33,6 @@ variable "glacier_transition_days" {
   description = "Number of days after which to move the data to the glacier storage tier"
 }
 
-variable "enable_glacier_transition" {
-  type        = bool
-  default     = true
-  description = "Enables the transition to AWS Glacier (note that this can incur unnecessary costs for huge amount of small files"
-}
-
 variable "expiration_days" {
   type        = number
   default     = 90
@@ -51,8 +45,3 @@ variable "access_log_bucket_name" {
   description = "Name of the S3 bucket where s3 access log will be sent to"
 }
 
-variable "acl" {
-  type        = string
-  description = "The canned ACL to apply. We recommend log-delivery-write for compatibility with AWS services"
-  default     = "log-delivery-write"
-}
