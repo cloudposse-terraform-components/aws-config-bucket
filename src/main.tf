@@ -11,6 +11,7 @@ module "config_bucket" {
   sse_algorithm                      = "AES256"
   standard_transition_days           = var.standard_transition_days
   access_log_bucket_name             = var.access_log_bucket_name
+  allow_ssl_requests_only            = var.allow_ssl_requests_only
 
   context = module.this.context
 }

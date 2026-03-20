@@ -56,3 +56,9 @@ variable "acl" {
   description = "The canned ACL to apply. We recommend log-delivery-write for compatibility with AWS services"
   default     = "log-delivery-write"
 }
+
+variable "allow_ssl_requests_only" {
+  type        = bool
+  description = "Set to true to require requests to use SSL/TLS (HTTPS). This will deny all HTTP requests to the bucket."
+  default     = false
+}
