@@ -8,9 +8,11 @@ module "config_bucket" {
   lifecycle_rule_enabled             = var.lifecycle_rule_enabled
   noncurrent_version_expiration_days = var.noncurrent_version_expiration_days
   noncurrent_version_transition_days = var.noncurrent_version_transition_days
-  sse_algorithm                      = "AES256"
+  sse_algorithm                      = var.sse_algorithm
+  kms_master_key_arn                 = var.kms_master_key_arn
   standard_transition_days           = var.standard_transition_days
   access_log_bucket_name             = var.access_log_bucket_name
+  allow_ssl_requests_only            = var.allow_ssl_requests_only
 
   context = module.this.context
 }

@@ -56,3 +56,32 @@ variable "acl" {
   description = "The canned ACL to apply. We recommend log-delivery-write for compatibility with AWS services"
   default     = "log-delivery-write"
 }
+
+variable "sse_algorithm" {
+  type        = string
+  description = "The server-side encryption algorithm to use for the bucket's default encryption. Valid values are `AES256` and `aws:kms`"
+  default     = "AES256"
+
+  validation {
+    condition     = contains(["AES256", "aws:kms"], var.sse_algorithm)
+    error_message = "sse_algorithm must be one of 'AES256' or 'aws:kms'."
+  }
+}
+
+variable "kms_master_key_arn" {
+  type        = string
+  description = <<-EOT
+    The ARN of the AWS KMS key used for default SSE-KMS encryption of the bucket. Only used when `sse_algorithm` is `aws:kms`.
+    If empty while `sse_algorithm` is `aws:kms`, the AWS managed `aws/s3` key is used.
+    The key policy must allow AWS Config to use the key (`kms:GenerateDataKey` and `kms:Decrypt`), either for the IAM role
+    that delivers configuration items or for the `config.amazonaws.com` service principal when Config delivers with its
+    service-linked role.
+  EOT
+  default     = ""
+}
+
+variable "allow_ssl_requests_only" {
+  type        = bool
+  description = "Set to `true` to add a bucket policy statement that denies any request made without TLS (`aws:SecureTransport` is `false`)"
+  default     = false
+}
